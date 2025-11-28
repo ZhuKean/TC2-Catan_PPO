@@ -118,4 +118,4 @@ Client/ReplicateUCT/CSV
 #Client/DeepLearning/Thesis/Tasks/Models/
 #Client/DeepLearning/Thesis/DenseRewards/Models/
 
-*.zip
+#*.zip
