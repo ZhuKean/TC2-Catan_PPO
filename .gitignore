@@ -105,17 +105,17 @@ Client/StateActions2/
 
 Client/ReplicateUCT/CSV
 
-Client/DeepLearning/Models/SelfPlaySame
-Client/DeepLearning/Models/SelfPlayDistribution
-Client/DeepLearning/Models/SelfPlayUniform
-Client/DeepLearning/Models/SelfPlayDist_Trading/
+#Client/DeepLearning/Models/SelfPlaySame
+#Client/DeepLearning/Models/SelfPlayDistribution
+#Client/DeepLearning/Models/SelfPlayUniform
+#Client/DeepLearning/Models/SelfPlayDist_Trading/
 
-Client/DeepLearning/Thesis/Hyperparameters/Models/
+#Client/DeepLearning/Thesis/Hyperparameters/Models/
 
-Client/DeepLearning/Models/
-Client/DeepLearning/Thesis/Hyperparameters/Models/
-Client/DeepLearning/Thesis/Opponents/Models/
-Client/DeepLearning/Thesis/Tasks/Models/
-Client/DeepLearning/Thesis/DenseRewards/Models/
+#Client/DeepLearning/Models/
+#Client/DeepLearning/Thesis/Hyperparameters/Models/
+#Client/DeepLearning/Thesis/Opponents/Models/
+#Client/DeepLearning/Thesis/Tasks/Models/
+#Client/DeepLearning/Thesis/DenseRewards/Models/
 
 *.zip
