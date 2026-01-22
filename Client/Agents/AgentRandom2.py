@@ -5,39 +5,37 @@ from itertools import combinations
 import math
 import random
 
+
 class AgentRandom2(Player):
 
-    def __init__(self, name, seatNumber, recordStats=False, playerTrading: bool=False, jsettlersGame=False):
+    def __init__(self, name, seatNumber, recordStats=False, playerTrading: bool = False, jsettlersGame=False):
 
         super(AgentRandom2, self).__init__(name, seatNumber, recordStats=recordStats)
-        self.playerTrading          = playerTrading
+        self.playerTrading = playerTrading
         self.jsettlersGame = jsettlersGame
 
         if playerTrading:
             self.trading = playerTrading
         else:
             self.trading = None
-    
+
     def GetAllPossibleActions_RegularTurns(self, gameState: GameState, player: Player):
 
-        possibleActions     = []
+        possibleActions = []
 
-        if player.settlements and\
-            player.HavePiece(g_pieces.index('CITIES')) and\
-            player.CanAfford(BuildCityAction.cost):
-
+        if player.settlements and \
+                player.HavePiece(g_pieces.index('CITIES')) and \
+                player.CanAfford(BuildCityAction.cost):
             possibleActions += [BuildCityAction(player.seatNumber, pos, len(player.cities)) for pos in
                                 gameState.GetPossibleCities(player)]
 
         if player.HavePiece(g_pieces.index('SETTLEMENTS')) and \
-            player.CanAfford(BuildSettlementAction.cost):
-
+                player.CanAfford(BuildSettlementAction.cost):
             possibleActions += [BuildSettlementAction(player.seatNumber, pos, len(player.settlements)) for pos in
                                 gameState.GetPossibleSettlements(player)]
 
         if player.HavePiece(g_pieces.index('ROADS')) and \
-            player.CanAfford(BuildRoadAction.cost):
-
+                player.CanAfford(BuildRoadAction.cost):
             possibleActions += [BuildRoadAction(player.seatNumber, pos, len(player.roads)) for pos in
                                 gameState.GetPossibleRoads(player)]
 
@@ -68,7 +66,7 @@ class AgentRandom2(Player):
         possibleBankTrades = self.GetPossibleBankTrades(gameState, player)
         if possibleBankTrades is not None and possibleBankTrades:
             possibleActions += possibleBankTrades
-        
+
         # Can only offer 2 player trades per turn
         if self.playerTrading:
             if self.tradeCount < 2:
@@ -79,7 +77,7 @@ class AgentRandom2(Player):
         possibleActions.append(EndTurnAction(playerNumber=player.seatNumber))
 
         return possibleActions
-    
+
     def GetAllPossibleActions_SpecialTurns(self, gameState: GameState, player: Player):
 
         if gameState.currState == 'PLACING_ROBBER':
@@ -100,7 +98,7 @@ class AgentRandom2(Player):
             possibleRoads = gameState.GetPossibleRoads(player)
 
             if possibleRoads is None or not possibleRoads or player.numberOfPieces[0] <= 0:
-                return [ ChangeGameStateAction("PLAY1") ]
+                return [ChangeGameStateAction("PLAY1")]
 
             return [BuildRoadAction(player.seatNumber, roadEdge,
                                     len(player.roads))
@@ -111,11 +109,11 @@ class AgentRandom2(Player):
             possibleRoads = gameState.GetPossibleRoads(player)
 
             if possibleRoads is None or not possibleRoads or player.numberOfPieces[0] <= 0:
-                action = [ ChangeGameStateAction("PLAY1") ]
+                action = [ChangeGameStateAction("PLAY1")]
             else:
                 action = [BuildRoadAction(player.seatNumber, roadEdge,
-                                        len(player.roads))
-                        for roadEdge in possibleRoads]
+                                          len(player.roads))
+                          for roadEdge in possibleRoads]
             return action
 
         elif gameState.currState == "WAITING_FOR_TRADE":
@@ -123,11 +121,11 @@ class AgentRandom2(Player):
             return self.GetPossiblePlayerTradeReactions(gameState, player)
 
     # Returns list of possible actions in given state
-    def GetPossibleActions(self, gameState, player = None):
+    def GetPossibleActions(self, gameState, player=None):
 
         if player is None:
             player = self
-        
+
         # Call function based on game phase
         if not gameState.setupDone:
             actions = self.GetAllPossibleActions_Setup(gameState, player)
@@ -138,9 +136,11 @@ class AgentRandom2(Player):
             actions = self.GetAllPossibleActions_RegularTurns(gameState, player)
         else:
             actions = self.GetAllPossibleActions_SpecialTurns(gameState, player)
-        
+
         if type(actions) != list:
             actions = [actions]
+        #print("Gamestate: " + gameState.currState)
+        #print("Possible action numbers: " + str(len(actions)))
         return actions
 
     # Return selected action
@@ -148,51 +148,51 @@ class AgentRandom2(Player):
 
         if self.jsettlersGame:
             if game.gameState.currPlayer != self.seatNumber and game.gameState.currState != "WAITING_FOR_DISCARDS":
-                #raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
+                raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
                 return None
 
         possibleActions = self.GetPossibleActions(game.gameState)
-
         if len(possibleActions) == 1:
             chosenAction = possibleActions[0]
+            return chosenAction
         else:
-            randIndex = random.randint(0, len(possibleActions)-1)
+            randIndex = random.randint(0, len(possibleActions) - 1)
             chosenAction = possibleActions[randIndex]
-            
+
             if chosenAction.type == "MakeTradeOffer":
                 self.tradeCount += 1
 
-        if chosenAction.type == "EndTurn":
-            self.playerTurns += 1
-        
-        return chosenAction
+            if chosenAction.type == "EndTurn":
+                self.playerTurns += 1
+            return chosenAction
         # NOTE: If no actions returned should we return EndTurn/RollDice?
+
 
     # TODO: later if discarding more than 4 resources, choose first 4 then the rest choose randomly
     def ChooseCardsToDiscard(self):
         player = self
-        
+
         if sum(player.resources) <= 7:
             return DiscardResourcesAction(player.seatNumber, [0, 0, 0, 0, 0, 0])
-            
-        resourcesPopulation =   [0 for i in range(0, player.resources[0])] + \
-                                [1 for j in range(0, player.resources[1])] + \
-                                [2 for k in range(0, player.resources[2])] + \
-                                [3 for l in range(0, player.resources[3])] + \
-                                [4 for m in range(0, player.resources[4])] + \
-                                [5 for n in range(0, player.resources[5])]
+
+        resourcesPopulation = [0 for i in range(0, player.resources[0])] + \
+                              [1 for j in range(0, player.resources[1])] + \
+                              [2 for k in range(0, player.resources[2])] + \
+                              [3 for l in range(0, player.resources[3])] + \
+                              [4 for m in range(0, player.resources[4])] + \
+                              [5 for n in range(0, player.resources[5])]
 
         possibleSelections = []
         if sum(player.resources) <= 11:
             # Returns list of tuples
-            possibleSelections = set(combinations(resourcesPopulation, len(resourcesPopulation)//2))
+            possibleSelections = set(combinations(resourcesPopulation, len(resourcesPopulation) // 2))
             return [DiscardResourcesAction(player.seatNumber, [selection.count(0),
-                                                                selection.count(1),
-                                                                selection.count(2),
-                                                                selection.count(3),
-                                                                selection.count(4),
-                                                                selection.count(5)])
-                        for selection in possibleSelections]
+                                                               selection.count(1),
+                                                               selection.count(2),
+                                                               selection.count(3),
+                                                               selection.count(4),
+                                                               selection.count(5)])
+                    for selection in possibleSelections]
         # if more than 11 resources just return random selection
         else:
             discardCardCount = int(math.floor(len(resourcesPopulation) / 2.0))
@@ -200,11 +200,11 @@ class AgentRandom2(Player):
             selectedResources = random.sample(resourcesPopulation, discardCardCount)
 
             return DiscardResourcesAction(player.seatNumber, [selectedResources.count(0),
-                                                            selectedResources.count(1),
-                                                            selectedResources.count(2),
-                                                            selectedResources.count(3),
-                                                            selectedResources.count(4),
-                                                            selectedResources.count(5)])
+                                                              selectedResources.count(1),
+                                                              selectedResources.count(2),
+                                                              selectedResources.count(3),
+                                                              selectedResources.count(4),
+                                                              selectedResources.count(5)])
 
     # Function which returns PlaceRobberActions for all hex positions
     def ChooseRobberPosition(self, gameState: GameState, player: Player) -> list:
@@ -217,7 +217,8 @@ class AgentRandom2(Player):
             player = self
         possiblePlayers = gameState.GetPossiblePlayersToSteal(player.seatNumber)
         if len(possiblePlayers) > 0:
-            return [ChoosePlayerToStealFromAction(player.seatNumber, possiblePlayer) for possiblePlayer in possiblePlayers]
+            return [ChoosePlayerToStealFromAction(player.seatNumber, possiblePlayer) for possiblePlayer in
+                    possiblePlayers]
         return None
 
     def GetPossibleBankTrades(self, gameState, player):
@@ -251,11 +252,11 @@ class AgentRandom2(Player):
             for giveIndex in range(5):
                 for giveAmount in [1, 2]:
                     if player.resources[giveIndex] >= giveAmount:
-                        giveResources    = [0, 0, 0, 0, 0, 0]
+                        giveResources = [0, 0, 0, 0, 0, 0]
                         giveResources[giveIndex] = giveAmount
                         for getIndex in range(5):
                             if getIndex != giveIndex:
-                                getResources    = [0, 0, 0, 0, 0, 0]
+                                getResources = [0, 0, 0, 0, 0, 0]
                                 getResources[getIndex] = 1
                                 # Go through other players and only offer to players who have resource
                                 toPlayers = [True, True, True, True]
@@ -268,8 +269,9 @@ class AgentRandom2(Player):
                                 if any(toPlayers):
                                     # print(f"{player.seatNumber}(Turn {player.stats.numTurns}) with resources: {player.resources[:5]}, Offer: {giveResources[:5]}_{getResources[:5]}")
                                     tradeAction = MakeTradeOfferAction(fromPlayerNumber=self.seatNumber,
-                                                                    toPlayers=toPlayers,
-                                                                    giveResources=giveResources, getResources=getResources)
+                                                                       toPlayers=toPlayers,
+                                                                       giveResources=giveResources,
+                                                                       getResources=getResources)
                                     possibleTrades.append(tradeAction)
         return possibleTrades
 
@@ -278,7 +280,7 @@ class AgentRandom2(Player):
         if player is None:
             player = self
 
-        return [ UseMonopolyCardAction(player.seatNumber, resource) for resource in range(5) ]
+        return [UseMonopolyCardAction(player.seatNumber, resource) for resource in range(5)]
 
     def GetYearOfPlentyResource(self, game, player):
 
@@ -310,7 +312,7 @@ class AgentRandom2(Player):
         # Something is broken with certain incoming trades with jsettlers server so reject all incoming trades
         if canTrade:
             acceptTrade = AcceptTradeOfferAction(playerNumber=player.seatNumber,
-                                                 offerPlayerNumber=gameState.currTradeOffer.fromPlayerNumber, 
+                                                 offerPlayerNumber=gameState.currTradeOffer.fromPlayerNumber,
                                                  gameState=gameState)
             return [acceptTrade, rejectTrade]
 

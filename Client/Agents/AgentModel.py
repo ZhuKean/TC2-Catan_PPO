@@ -117,13 +117,14 @@ class AgentMultiModel(BaseAgentModel):
 
         # Needed for JSettlers
         if game.gameState.currPlayer != self.seatNumber and game.gameState.currState != "WAITING_FOR_DISCARDS":
-            #raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
+            # raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
             return None
 
         possibleActions = self.GetPossibleActions(game.gameState)
-        
+        #print(possibleActions)
         if len(possibleActions) == 1:
             actionObj = possibleActions[0]
+            return actionObj
         else:
             if game.gameState.currState == "START1A" or game.gameState.currState == "START2A":
                 actionObj = self.getSetupModelAction(game, possibleActions)
@@ -139,11 +140,10 @@ class AgentMultiModel(BaseAgentModel):
 
             if self.playerTrading and actionObj.type == "MakeTradeOffer":
                 self.tradeCount += 1
-        
-        if actionObj.type == "EndTurn":
-            self.playerTurns += 1
 
-        return actionObj
+            if actionObj.type == "EndTurn":
+                self.playerTurns += 1
+            return actionObj
     
     def getSetupModelAction(self, game, possibleActions):
         """
@@ -152,5 +152,8 @@ class AgentMultiModel(BaseAgentModel):
         action_masks, indexActionDict = self.setupModel.getActionMask(possibleActions)
         state = self.setupModel.getObservation(game.gameState, self.seatNumber)
         action, _states = self.setupModel.predict(state, action_masks=action_masks)
+        # print("num possible:", len(possibleActions))
+        # print("mask len:", len(action_masks))
+        # print("max idx:", max(indexActionDict.keys()))
         actionObj = indexActionDict[action.item()]
         return actionObj
