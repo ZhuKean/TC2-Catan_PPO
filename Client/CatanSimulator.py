@@ -160,7 +160,7 @@ defaultGame = CreateGame(defaultPlayers)
 # Runs game loop for a single game
 def RunSingleGame(game):
 
-    game = pickle.loads(pickle.dumps(game, -1))
+    #game = pickle.loads(pickle.dumps(game, -1))
 
     while True:
 

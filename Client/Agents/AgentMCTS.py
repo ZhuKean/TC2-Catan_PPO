@@ -2,9 +2,8 @@ from .AgentRandom import *
 from datetime import datetime
 from datetime import timedelta
 import multiprocessing as mp
-import threading
 import dill as pickle
-
+import threading
 # * OPTION (for performance)*#    implement nodes as a tuple (worse to read/understand)
 # MCTS TREE NODE STRUCTURE:
 # (gameState, action     , Q-value , N-value     , PARENT     , CHILDREN)
@@ -14,7 +13,7 @@ class MCTSNode:
     def __init__(self, player, state, action, qValue, nValue, parent, children, actionsFunction, virtualWins=False):
 
         self.actingPlayer    = player
-        self.gameState       = pickle.dumps(state, -1) # current gameState
+        self.gameState = state # current gameState
         self.action          = action  # action that led to this state
         self.QValue          = qValue  # node estimated reward value
         self.NValue          = nValue  # number of visits
@@ -24,11 +23,9 @@ class MCTSNode:
         self.AMAFQValue      = [0, 0, 0, 0]
         self.AMAFNValue      = 0
         self.QValueHist      = []
-        self.saveNodeValue   = 20
 
         # VIRTUAL WINS
         if virtualWins:
-            self.saveNodeValue = 25
             if self.action is not None:
                 if self.action.type == 'BuildSettlement':
                     self.QValue[self.actingPlayer] = 20
@@ -52,21 +49,11 @@ class MCTSNode:
         self.isTerminal      = state.IsTerminal()
 
     def GetState(self):
-        if self.NValue < self.saveNodeValue:
-            return pickle.loads(self.gameState)
-        else:
-            return self.gameState
+        return self.gameState
 
-    def GetStateCopy(self):
-        if self.NValue < self.saveNodeValue:
-            return pickle.loads(self.gameState)
-        else:
-            return pickle.loads(pickle.dumps(self.gameState, -1))
 
     def UpdateNValue(self):
         self.NValue += 1
-        if self.NValue == self.saveNodeValue:
-            self.gameState = pickle.loads(self.gameState)
 
     def UpdateQValue(self, addValue):
         self.QValueHist.append(addValue)
@@ -131,7 +118,7 @@ class AgentMCTS(AgentRandom):
     def DoMove(self, game):
 
         copyState = None
-
+        # print("MTCS current turn: " + str(game.gameState.currTurn))
         #TODO> change here too
         currGame = game
 
@@ -142,7 +129,7 @@ class AgentMCTS(AgentRandom):
             return None
         #If the server is waiting for discards, respond, if needed...
         if game.gameState.currState == "WAITING_FOR_DISCARDS":
-            copyState = pickle.loads(pickle.dumps(game.gameState, -1))
+            copyState = game.gameState.clone()
             copyState.playerBeforeDiscards = copyState.currPlayer
             copyState.currPlayer = self.seatNumber
 
@@ -186,9 +173,9 @@ class AgentMCTS(AgentRandom):
         self.simulationCounter = 0
 
         if copyState is None:
-            state = pickle.loads(pickle.dumps(game.gameState, -1))
+            state = game.gameState.clone()
         else:
-            state = pickle.loads(pickle.dumps(copyState, -1))
+            state = copyState.clone()
 
         AgentMCTS.PrepareGameStateForSimulation(state)
 
@@ -229,7 +216,7 @@ class AgentMCTS(AgentRandom):
                 return None
 
             processes = [mp.Process(target=self.MonteCarloTreeSearch, args=(state, ct, coreSimCount, True, i, resultNodes,
-                                                                            pickle.loads(pickle.dumps(rootNode, -1))))
+                                                                            game.gameState.clone()))
                          for i in range(numCores)]  # I am running as many processes as CPU my machine has (is this wise?).
             for proc in processes:
                 proc.start()
@@ -253,6 +240,11 @@ class AgentMCTS(AgentRandom):
             for childNode in rootNode.children:
                 if childNode.NValue <= 0:
                     rootNode.children.remove(childNode)
+
+            print(f"Root Node NValue: {rootNode.NValue}")
+            print(f"Number of children: {len(rootNode.children)}")
+            for i, child in enumerate(rootNode.children):
+                print(f"Child {i} NValue: {child.NValue}")
 
             bestNode = self.BestChild(rootNode, 0, rootNode.NValue)
 
@@ -350,7 +342,7 @@ class AgentMCTS(AgentRandom):
         while Condition():
 
             nextNode = self.TreePolicy(rootNode, rootNode.NValue)
-            reward   = self.SimulationPolicy(nextNode.GetStateCopy())
+            reward   = self.SimulationPolicy(nextNode.gameState.clone())
             self.BackUp(nextNode, reward)
             self.simulationCounter += 1
 
@@ -414,7 +406,7 @@ class AgentMCTS(AgentRandom):
 
         node.possibleActions.remove(chosenAction)
 
-        nextGameState = node.GetStateCopy()
+        nextGameState = node.gameState.clone()
 
         chosenAction.ApplyAction(nextGameState)
 

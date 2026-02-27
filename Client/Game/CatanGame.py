@@ -3,7 +3,8 @@ from Game.CatanAction import *
 import dill as pickle
 import datetime
 from CatanData.GameData import GameData
-
+import dill
+import copy
 # Contains all info on current game and methods to update state
 class GameState(object):
 
@@ -48,6 +49,30 @@ class GameState(object):
         self.checkLongestRoad = False
 
         self.boardConfig = None
+
+    def clone(self):
+        """
+        深拷贝 GameState，同时剔除不可序列化或不需要复制的属性。
+        """
+        try:
+            # 使用 dill 进行深拷贝，更强大，能处理函数、闭包等
+            new_state = dill.loads(dill.dumps(self, recurse=True))
+        except Exception as e:
+            # 如果dill失败，退回 copy.deepcopy
+            print(f"[WARNING] dill clone failed: {e}, trying copy.deepcopy")
+            new_state = copy.deepcopy(self)
+
+        # 剔除每个玩家内部的模型
+        if hasattr(new_state, 'players') and new_state.players is not None:
+            for player in new_state.players:
+                if player is not None and hasattr(player, 'model'):
+                    player.model = None
+                    # print("Has 'model'!!!")
+                if player is not None and hasattr(player, 'Model'):
+                    player.Model = None
+                    # print("Has 'Model'!!!")
+        # print(str(new_state.players[0]) + str(new_state.players[1]))
+        return new_state
 
     def ShiftPlayerToFirstSeat(self, player):
 

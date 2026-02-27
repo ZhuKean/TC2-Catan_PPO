@@ -10,10 +10,12 @@ from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
 from CatanData.GameStateViewer import SaveGameStateImage
 from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, setupRandomLowerBounds, setupRandomUpperBounds
-from DeepLearning.GetActionMask import getActionMask, getSetupActionMask
+from DeepLearning.Thesis.Setup.getActionMaskSetup import getSetupActionMask
 from DeepLearning.PPO import MaskablePPO
 from sb3_contrib.common.maskable.utils import get_action_masks
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
+from DeepLearning.GetActionMask import getActionMask
+from DeepLearning.Thesis.Setup.getObservationSetup import getObservationSetup, lowerBound, upperBound
 
 class NoSetupEnv(CatanBaseEnv):
     """
@@ -28,7 +30,7 @@ class NoSetupEnv(CatanBaseEnv):
         super(NoSetupEnv, self).__init__()
 
         self.action_space = spaces.Discrete(486)
-        self.observation_space = spaces.Box(low=lowerBounds, high=upperBounds, dtype=np.int64) 
+        self.observation_space = spaces.Box(low=lowerBounds, high=upperBounds, dtype=np.int64)
 
         # functions for getting actionMask/observation
         self.getActionMask = getActionMask
@@ -61,8 +63,9 @@ class NoSetupEnv(CatanBaseEnv):
             else:
                 if self.game.gameState.currState == 'PLAY':
                     break
-                observation = getSetupRandomObservation(self.game.gameState)
-                tempActionMask, tempIndexActionDict = getSetupActionMask(self.agent.GetPossibleActions(self.game.gameState))
+                # observation = getSetupRandomObservation(self.game.gameState)
+                observation = getObservationSetup(self.game.gameState) # 940
+                tempActionMask, tempIndexActionDict = getSetupActionMask(self.agent.GetPossibleActions(self.game.gameState)) # 126
                 action, _states = self.setupModel.predict(observation, action_masks=tempActionMask)
                 actionObj = tempIndexActionDict[action.item()]
                 actionObj.ApplyAction(self.game.gameState)

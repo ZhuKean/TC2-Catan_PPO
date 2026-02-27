@@ -8,10 +8,11 @@ from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel
 from CatanData.GameStateViewer import SaveGameStateImage
-from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified, getNodeValue, getObservationTrading, lowerBoundsTrading, upperBoundsTrading
+#from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified, getNodeValue, getObservationTrading, lowerBoundsTrading, upperBoundsTrading
 from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
 from DeepLearning.PPO import MaskablePPO
 from CatanData.GameStateViewer import SaveGameStateImage, DisplayImage
+from DeepLearning.Thesis.Observations.get_observation import getObservation, lowerBound, upperBound
 import time
 from collections import deque
 from DeepLearning.globals import GAME_RESULTS
@@ -25,7 +26,7 @@ class CatanBaseEnv(gym.Env):
         super(CatanBaseEnv, self).__init__()
 
         self.action_space = spaces.Discrete(486)
-        self.observation_space = spaces.Box(low=lowerBoundsSimplified, high=upperBoundsSimplified, dtype=np.int64) 
+        self.observation_space = spaces.Box(low=lowerBound, high=upperBound, dtype=np.int64)
 
         self.game: Game = None
         # Used to fetch Action object from action index chosen by models
@@ -40,7 +41,7 @@ class CatanBaseEnv(gym.Env):
         self.trading = trading
 
         self.getActionMask = getActionMask
-        self.getObservation = getObservationSimplified
+        self.getObservation = getObservation
 
         if players == None:
             self.players = [AgentRandom2("P0", 0, playerTrading=trading),
@@ -54,10 +55,11 @@ class CatanBaseEnv(gym.Env):
         """
         Setup new game, cycle through actions till agents turn, return current state and set action mask
         """
-        for player in self.players:
-            player:Player = player.__init__(player.name, player.seatNumber, playerTrading=self.trading) 
+        #for player in self.players:
+            #player:Player = player.__init__(player.name, player.seatNumber, playerTrading=self.trading)
         inGame = CreateGame(self.players, self.customBoard)
-        self.game = pickle.loads(pickle.dumps(inGame, -1))
+        #self.game = pickle.loads(pickle.dumps(inGame, -1))
+        self.game = inGame
         self.players = self.game.gameState.players
         self.agent = self.game.gameState.players[0]
 

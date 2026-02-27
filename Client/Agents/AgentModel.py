@@ -113,36 +113,67 @@ class AgentMultiModel(BaseAgentModel):
         self.setupModel = setupModel
         self.fullSetup = fullSetup
 
-    def DoMove(self, game):
+    def __getstate__(self):
+        """告诉 pickle 哪些属性需要序列化，哪些不需要"""
+        state = self.__dict__.copy()
+        # 移除不可序列化的模型对象
+        state['setupModel'] = None
+        # 如果 self.model 也是神经网络模型，也需要移除
+        if 'model' in state:
+            state['model'] = None
+        return state
 
-        # Needed for JSettlers
+    def __setstate__(self, state):
+        """反序列化时恢复属性"""
+        self.__dict__.update(state)
+        # 注意：这里 setupModel 会变成 None。
+        # 但没关系，因为 MCTS 在模拟“未来”时，P1 应该已经过了 Setup 阶段，
+        # 或者在模拟中可以使用随机动作代替，这样就不会报错。
+
+    def DoMove(self, game):
         if game.gameState.currPlayer != self.seatNumber and game.gameState.currState != "WAITING_FOR_DISCARDS":
-            # raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
             return None
 
         possibleActions = self.GetPossibleActions(game.gameState)
-        #print(possibleActions)
+
         if len(possibleActions) == 1:
-            actionObj = possibleActions[0]
-            return actionObj
+            return possibleActions[0]
         else:
-            if game.gameState.currState == "START1A" or game.gameState.currState == "START2A":
-                actionObj = self.getSetupModelAction(game, possibleActions)
-            elif game.gameState.currState == "START1B" or game.gameState.currState == "START2B":
-                if self.fullSetup:
+            # Setup stage
+            if game.gameState.currState in ["START1A", "START2A"]:
+                # Setup always using setupModel
+                if self.setupModel is None:
+                    actionObj = self.getRandomAction(game, possibleActions)
+                    print("Warning: No Setup model. Random action taken.")
+                else:
+                    actionObj = self.getSetupModelAction(game, possibleActions)
+
+            elif game.gameState.currState in ["START1B", "START2B"]:
+                if self.fullSetup and self.setupModel is not None:
                     actionObj = self.getSetupModelAction(game, possibleActions)
                 else:
                     actionObj = self.getRandomAction(game, possibleActions)
-            elif self.model == None:
+
+            # Downstream play
+            elif self.model is None:
                 actionObj = self.getRandomAction(game, possibleActions)
+                print("Warning: No Downstream model. Random action taken.")
+
+            elif hasattr(self.model, 'DoMove'):
+                # if self.model is an Agent
+                actionObj = self.model.DoMove(game)
+
             else:
+                # else it's PPO model
                 actionObj = self.getModelAction(game, possibleActions)
+
 
             if self.playerTrading and actionObj.type == "MakeTradeOffer":
                 self.tradeCount += 1
 
             if actionObj.type == "EndTurn":
                 self.playerTurns += 1
+
             return actionObj
     
     def getSetupModelAction(self, game, possibleActions):
