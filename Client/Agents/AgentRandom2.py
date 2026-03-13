@@ -149,9 +149,9 @@ class AgentRandom2(Player):
         if self.jsettlersGame:
             if game.gameState.currPlayer != self.seatNumber and game.gameState.currState != "WAITING_FOR_DISCARDS":
                 raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
-                return None
 
         possibleActions = self.GetPossibleActions(game.gameState)
+        # print(possibleActions)
         if len(possibleActions) == 1:
             chosenAction = possibleActions[0]
             return chosenAction

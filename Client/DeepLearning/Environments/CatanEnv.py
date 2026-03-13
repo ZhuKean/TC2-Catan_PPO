@@ -8,11 +8,11 @@ from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel
 from CatanData.GameStateViewer import SaveGameStateImage
-#from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified, getNodeValue, getObservationTrading, lowerBoundsTrading, upperBoundsTrading
+from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified, getNodeValue, getObservationTrading, lowerBoundsTrading, upperBoundsTrading
 from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
 from DeepLearning.PPO import MaskablePPO
 from CatanData.GameStateViewer import SaveGameStateImage, DisplayImage
-from DeepLearning.Thesis.Observations.get_observation import getObservation, lowerBound, upperBound
+from DeepLearning.Thesis.Observations.get_observation_full import getObservationFull, lowerBound, upperBound
 import time
 from collections import deque
 from DeepLearning.globals import GAME_RESULTS
@@ -41,7 +41,7 @@ class CatanBaseEnv(gym.Env):
         self.trading = trading
 
         self.getActionMask = getActionMask
-        self.getObservation = getObservation
+        self.getObservation = getObservationFull
 
         if players == None:
             self.players = [AgentRandom2("P0", 0, playerTrading=trading),
@@ -66,6 +66,7 @@ class CatanBaseEnv(gym.Env):
         # Cycle through until agents turn
         currPlayer = self.players[self.game.gameState.currPlayer]
         while currPlayer.seatNumber != 0:
+            print(currPlayer)
             agentAction = currPlayer.DoMove(self.game)
             agentAction.ApplyAction(self.game.gameState)
             currPlayer = self.players[self.game.gameState.currPlayer]
@@ -114,6 +115,7 @@ class CatanBaseEnv(gym.Env):
         currPlayer = self.players[self.game.gameState.currPlayer]
         while currPlayer.seatNumber != 0:
             agentAction = currPlayer.DoMove(self.game)
+            print(currPlayer)
             agentAction.ApplyAction(self.game.gameState)
             currPlayer = self.players[self.game.gameState.currPlayer]
             if self.game.gameState.currState == "OVER":

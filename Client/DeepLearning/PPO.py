@@ -605,7 +605,7 @@ class MaskablePPO(OnPolicyAlgorithm):
         # Check if threshold has been reached (>75% win rate over last 100 games)
         print(f"CheckingWinRate(Distribution): {sum(GAME_RESULTS)/GAME_RESULTS_LEN}")
         winRate = sum(GAME_RESULTS)/GAME_RESULTS_LEN
-        if winRate >= 0.75:
+        if winRate >= 0.40:
 
             modelName1 = f'model_{timestep}_{int(avgReward)}'
             self.save(f'DeepLearning/Models/ZKA_selfplay/{modelName1}')

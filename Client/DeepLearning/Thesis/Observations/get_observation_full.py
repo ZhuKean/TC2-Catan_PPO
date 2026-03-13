@@ -122,7 +122,7 @@ def getEdgeRepresentation(edge: BoardEdge, gameState: GameState, playerNumber=0)
 
 lowerBound = np.array([*otherInfoLowerBound, *hexsLowerBound, *nodesLowerBound, *edgesLowerBound])
 upperBound = np.array([*otherInfoUpperBound, *hexsLowerBound, *nodesUpperBound, *edgesUpperBound])
-# 1804
+# 1233, final thesis version
 def getObservationFull(gameState: GameState, playerNumber=0):
     """
     Final observation for thesis after testing multiple variations

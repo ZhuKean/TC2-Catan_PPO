@@ -11,7 +11,7 @@ from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
 from DeepLearning.PPO import MaskablePPO
 from DeepLearning.globals import GAME_RESULTS
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
-from DeepLearning.Thesis.Observations.get_observation import getObservation, lowerBound, upperBound
+from DeepLearning.Thesis.Observations.get_observation_full import getObservationFull, lowerBound, upperBound
 
 class DummyEnv(CatanBaseEnv):
 
@@ -26,7 +26,7 @@ class DummyEnv(CatanBaseEnv):
         self.vpActionRewardMultiplier = 1
 
         self.getActionMask = getActionMask
-        self.getObservation = getObservation # 1895
+        self.getObservation = getObservationFull # 1233
 
         self.action_space = spaces.Discrete(486)
         self.observation_space = spaces.Box(low=lowerBound, high=upperBound, dtype=np.int64)
