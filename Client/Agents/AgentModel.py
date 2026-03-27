@@ -107,11 +107,37 @@ class AgentMultiModel(BaseAgentModel):
     If 'model' not passed will use random actions
     """
 
-    def __init__(self, name, seatNumber, setupModel: MaskablePPO, fullSetup: bool, playerTrading: bool=False, model: MaskablePPO = None, recordStats=False, jsettlersGame=False):
+    def __init__(self, name, seatNumber,
+                 setupModel, setup_obs_func, setup_mask_func,
+                 gameplayModel, gameplay_obs_func, gameplay_mask_func,
+                 fullSetup: bool, **kwargs):
 
-        super(AgentMultiModel, self).__init__(name, seatNumber, model, playerTrading, recordStats=recordStats, jsettlersGame=jsettlersGame)
+        super().__init__(name, seatNumber, model=gameplayModel, **kwargs)
         self.setupModel = setupModel
+        self.setup_obs_func = setup_obs_func
+        self.setup_mask_func = setup_mask_func
+
+        self.gameplay_obs_func = gameplay_obs_func
+        self.gameplay_mask_func = gameplay_mask_func
         self.fullSetup = fullSetup
+
+    def getSetupModelAction(self, game, possibleActions):
+        # 使用开局专用的 Observation 和 Mask
+        state = self.setup_obs_func(game.gameState, self.seatNumber)
+        action_masks, indexActionDict = self.setup_mask_func(possibleActions)
+
+        # 这里的 predict 使用 setupModel
+        action, _ = self.setupModel.predict(state, action_masks=action_masks, deterministic=True)
+        return indexActionDict[action.item()]
+
+    def getModelAction(self, game, possibleActions):
+        # 使用游戏阶段专用的 Observation 和 Mask (getObservationFull 等)
+        state = self.gameplay_obs_func(game.gameState, self.seatNumber)
+        action_masks, indexActionDict = self.gameplay_mask_func(possibleActions)
+
+        # 这里的 predict 使用 self.model (即正在训练的 Gameplay 模型)
+        action, _ = self.model.predict(state, action_masks=action_masks, deterministic=True)
+        return indexActionDict[action.item()]
 
     def __getstate__(self):
         """告诉 pickle 哪些属性需要序列化，哪些不需要"""
@@ -176,15 +202,3 @@ class AgentMultiModel(BaseAgentModel):
 
             return actionObj
     
-    def getSetupModelAction(self, game, possibleActions):
-        """
-        Uses setupModel and setupEnv to get action
-        """
-        action_masks, indexActionDict = self.setupModel.getActionMask(possibleActions)
-        state = self.setupModel.getObservation(game.gameState, self.seatNumber)
-        action, _states = self.setupModel.predict(state, action_masks=action_masks)
-        # print("num possible:", len(possibleActions))
-        # print("mask len:", len(action_masks))
-        # print("max idx:", max(indexActionDict.keys()))
-        actionObj = indexActionDict[action.item()]
-        return actionObj
