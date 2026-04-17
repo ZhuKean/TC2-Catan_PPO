@@ -377,7 +377,7 @@ class SelfPlayMultiModelZKA(SelfPlayBase):
         self.selfPlay = selfPlay
 
         # 步数衰减机制
-        self.dense_reward_end_step = 1000000
+        self.dense_reward_end_step = 0
         self.current_step = 0
         self.debug = debug
         self.episode_dense_reward = 0
