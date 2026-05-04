@@ -7,14 +7,14 @@ from Game.CatanGame import *
 from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel
-from Agents.AgentGlobalModel import AgentGlobalModel
+#from Agents.AgentGlobalModel import AgentGlobalModel
 import time
 from collections import deque
 from DeepLearning.globals import GAME_RESULTS
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
-from DeepLearning.Thesis.Setup.getActionMaskSetup import getSetupActionMask
-from DeepLearning.Thesis.Setup.getObservationSetup import getObservationSetup, lowerBound, upperBound 
-from global_model import global_models
+from DeepLearning.Encoders.Setup.ActionMask.getSetupActionMask import getSetupActionMask
+from DeepLearning.Encoders.Setup.Observation.getObservationSetup import getObservationSetup, lowerBound, upperBound
+# from global_model import global_models
 
 
 class SetupRandom(CatanBaseEnv):
@@ -117,6 +117,7 @@ class SetupRandom(CatanBaseEnv):
                 break
         
         wonGame = self.game.gameState.winner == 0
+        GAME_RESULTS.append(1 if wonGame else 0)
         if wonGame:
             if self.winReward:
                 reward += self.winRewardAmount

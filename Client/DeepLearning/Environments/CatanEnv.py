@@ -9,10 +9,10 @@ from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel
 from CatanData.GameStateViewer import SaveGameStateImage
 from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified, getNodeValue, getObservationTrading, lowerBoundsTrading, upperBoundsTrading
-from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
+from DeepLearning.Encoders.MainGame.ActionMask.GetActionMask import getActionMask, getActionMaskTrading
 from DeepLearning.PPO import MaskablePPO
 from CatanData.GameStateViewer import SaveGameStateImage, DisplayImage
-from DeepLearning.Thesis.Observations.get_observation_full import getObservationFull, lowerBound, upperBound
+from DeepLearning.Encoders.MainGame.Observation.get_observation_full import getObservationFull, lowerBound, upperBound
 import time
 from collections import deque
 from DeepLearning.globals import GAME_RESULTS
@@ -61,13 +61,31 @@ class CatanBaseEnv(gym.Env):
         #self.game = pickle.loads(pickle.dumps(inGame, -1))
         self.game = inGame
         self.players = self.game.gameState.players
+        for p in self.players:
+            p.firstSettlementBuild = False  # 核心：重置建造状态
+            p.firstRoadBuild = False
+            p.secondSettlementBuild = False
+            p.secondRoadBuild = False
+            p.settlements = []
+            p.roads = []
         self.agent = self.game.gameState.players[0]
 
         # Cycle through until agents turn
         currPlayer = self.players[self.game.gameState.currPlayer]
         while currPlayer.seatNumber != 0:
-            print(currPlayer)
+            #print(currPlayer)
             agentAction = currPlayer.DoMove(self.game)
+
+            # 添加以下调试代码
+            if agentAction is None:
+                print(f"❌ 运行崩溃！")
+                print(f"当前玩家索引: {self.game.gameState.currPlayer}")
+                print(f"当前玩家对象: {currPlayer}")
+                print(f"当前游戏状态 (State): {self.game.gameState.currState}")
+                # 强制检查当前合法动作，看是不是逻辑判定的合法动作确实为 0
+                possible = currPlayer.GetPossibleActions(self.game.gameState)
+                print(f"该玩家可见的合法动作数量: {len(possible)}")
+                raise ValueError("Agent 返回了 None 动作，导致 reset 无法继续。")
             agentAction.ApplyAction(self.game.gameState)
             currPlayer = self.players[self.game.gameState.currPlayer]
 

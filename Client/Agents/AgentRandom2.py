@@ -19,6 +19,26 @@ class AgentRandom2(Player):
         else:
             self.trading = None
 
+    def GetAllPossibleActions_Setup(self, gameState, player):
+        """专门处理开局放置村庄和道路的逻辑"""
+        if gameState.currState in ["START1A", "START2A"]:
+            # 获取合法建筑点
+            possibleNodes = gameState.GetPossibleSettlements(player)
+            if not possibleNodes:
+                return []  # 显式返回空列表，由 DoMove 处理
+            return [BuildSettlementAction(player.seatNumber, node, len(player.settlements))
+                    for node in possibleNodes]
+
+        elif gameState.currState in ["START1B", "START2B"]:
+            # 获取合法道路点
+            possibleEdges = gameState.GetPossibleRoads(player)
+            if not possibleEdges:
+                return []
+            return [BuildRoadAction(player.seatNumber, edge, len(player.roads))
+                    for edge in possibleEdges]
+
+        return []
+
     def GetAllPossibleActions_RegularTurns(self, gameState: GameState, player: Player):
 
         possibleActions = []
@@ -122,12 +142,12 @@ class AgentRandom2(Player):
 
     # Returns list of possible actions in given state
     def GetPossibleActions(self, gameState, player=None):
-
         if player is None:
             player = self
 
-        # Call function based on game phase
+        actions = []
         if not gameState.setupDone:
+            # 确保你定义了这个方法
             actions = self.GetAllPossibleActions_Setup(gameState, player)
         elif gameState.currState == "PLAY":
             self.tradeCount = 0
@@ -137,35 +157,32 @@ class AgentRandom2(Player):
         else:
             actions = self.GetAllPossibleActions_SpecialTurns(gameState, player)
 
-        if type(actions) != list:
+        # 核心修复：确保 actions 始终是列表，且过滤掉任何 None 值
+        if actions is None:
+            return []
+        if not isinstance(actions, list):
             actions = [actions]
-        #print("Gamestate: " + gameState.currState)
-        #print("Possible action numbers: " + str(len(actions)))
-        return actions
+
+        return [a for a in actions if a is not None]
 
     # Return selected action
     def DoMove(self, game):
-
-        if self.jsettlersGame:
-            if game.gameState.currPlayer != self.seatNumber and game.gameState.currState != "WAITING_FOR_DISCARDS":
-                raise Exception("\n\nReturning None Action - INVESTIGATE\n\n")
-
         possibleActions = self.GetPossibleActions(game.gameState)
-        # print(possibleActions)
-        if len(possibleActions) == 1:
-            chosenAction = possibleActions[0]
-            return chosenAction
-        else:
-            randIndex = random.randint(0, len(possibleActions) - 1)
-            chosenAction = possibleActions[randIndex]
 
+        if len(possibleActions) == 1:
+            return possibleActions[0]
+
+        # 此时 len(possibleActions) 至少为 2，randint 绝不会报错
+        randIndex = random.randint(0, len(possibleActions) - 1)
+        chosenAction = possibleActions[randIndex]
+
+        if hasattr(chosenAction, 'type'):  # 增加属性检查
             if chosenAction.type == "MakeTradeOffer":
                 self.tradeCount += 1
-
             if chosenAction.type == "EndTurn":
                 self.playerTurns += 1
-            return chosenAction
-        # NOTE: If no actions returned should we return EndTurn/RollDice?
+
+        return chosenAction
 
 
     # TODO: later if discarding more than 4 resources, choose first 4 then the rest choose randomly
@@ -317,3 +334,4 @@ class AgentRandom2(Player):
             return [acceptTrade, rejectTrade]
 
         return [rejectTrade]
+

@@ -1,24 +1,13 @@
 import subprocess
 import os
-import signal
 import time
 import argparse
 
-from Agents.AgentRandom import *
-from Agents.AgentMCTS import AgentMCTS
-from Agents.AgentUCT import AgentUCT
-from Agents.AgentUCTTuned import AgentUCTTuned
-from Agents.AgentRandom2 import AgentRandom2
-from Agents.AgentModel import AgentModel, AgentMultiModel
+from Agents.AgentModel import AgentModel
 from DeepLearning.PPO import MaskablePPO
-from DeepLearning.GetObservation import getObservationSimplified
-from DeepLearning.GetActionMask import getActionMaskTrading
 
-import CatanData.CSVGenerator
 from Client import Client
-from tabulate import tabulate
-from DeepLearning.Stats import headers
-import pandas as pd
+
 
 def check_positive(value):
     ivalue = int(value)

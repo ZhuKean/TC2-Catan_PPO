@@ -41,7 +41,7 @@ class AgentRandom(Player):
         if   gameState.currState == 'START1A':
 
             if player.firstSettlementBuild:
-                return None
+                return []
 
             if filterSetupSettlements:
                 def IsNodeGood(node):
