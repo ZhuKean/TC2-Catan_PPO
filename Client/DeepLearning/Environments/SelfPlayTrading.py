@@ -41,11 +41,36 @@ class SelfPlayTrading(CatanBaseEnv):
         self.observation_space = spaces.Box(low=lowerBound, high=upperBound, dtype=np.int64)
 
         # Load starting opponent model
-        self.opponentModel0 = AgentRandom2("P1", 1)
-        #self.opponentModel0 = MaskablePPO.load('DeepLearning/Thesis/7.Trading/Models/onehot_2M_selfplaytradingenv_random')
-        #self.opponentModel1 = MaskablePPO.load('DeepLearning/Thesis/7.Trading/Models/onehot_2M_selfplaytradingenv_random')
-        #self.opponentModel2 = MaskablePPO.load('DeepLearning/Thesis/7.Trading/Models/onehot_2M_selfplaytradingenv_random')
-        #self.opponentModel3 = MaskablePPO.load('DeepLearning/Thesis/7.Trading/Models/onehot_2M_selfplaytradingenv_random')
+        model_path = os.path.join("onehot_2M_selfplaytradingenv_random")
+        print(model_path)
+        custom_objects = {
+            "getObservation": getObservationFull,  # 直接传入函数名，不再进行手动切片
+            "getActionMask": getActionMaskTrading,
+            "action_space": spaces.Discrete(566),  # 显式告诉加载器，我们要用 566
+        }
+
+        # 加载模型时，SB3 会自动将模型内部存储的 getObservation 替换为你传入的这个
+        self.opponentModel0 = MaskablePPO.load(
+            model_path,
+            env=self,
+            custom_objects=custom_objects
+        )
+        self.opponentModel1 = MaskablePPO.load(
+            model_path,
+            env=self,
+            custom_objects=custom_objects
+        )
+        self.opponentModel2 = MaskablePPO.load(
+            model_path,
+            env=self,
+            custom_objects=custom_objects
+        )
+        self.opponentModel3 = MaskablePPO.load(
+            model_path,
+            env=self,
+            custom_objects=custom_objects
+        )
+
 
     def reset(self, seed=None):
 
@@ -63,15 +88,14 @@ class SelfPlayTrading(CatanBaseEnv):
             #self.opponentModel1.set_parameters(f"DeepLearning/Thesis/7.Trading/Models/SelfPlayTrading/{modelName3}")
             os.environ["UPDATE_MODELS_DIST"] = "False"
 
-        self.game = CreateGame([AgentModel("P0", 0, self.opponentModel0,playerTrading=False),
-                                AgentRandom2("P1", 1,  playerTrading=False),
-                                AgentRandom2("P2", 2,  playerTrading=False),
-                                AgentRandom2("P3", 3,  playerTrading=False)])
-
-        # self.game = CreateGame([AgentModel("P0", 0, self.opponentModel0, playerTrading=False),
-        #                         AgentModel("P1", 1, self.opponentModel1, playerTrading=False),
-        #                         AgentModel("P2", 2, self.opponentModel2, playerTrading=False),
-        #                         AgentModel("P3", 3, self.opponentModel3, playerTrading=False)])
+        #self.game = CreateGame([AgentModel("P0", 0, self.opponentModel0,playerTrading=False),
+        #                        AgentRandom2("P1", 1,  playerTrading=False),
+        #                        AgentRandom2("P2", 2,  playerTrading=False),
+        #                        AgentRandom2("P3", 3,  playerTrading=False)])
+        self.game = CreateGame([AgentModel("P0", 0, self.opponentModel0, playerTrading=True),
+                                 AgentModel("P1", 1, self.opponentModel1, playerTrading=True),
+                                 AgentModel("P2", 2, self.opponentModel2, playerTrading=True),
+                                 AgentModel("P3", 3, self.opponentModel3, playerTrading=True)])
         # self.game = pickle.loads(pickle.dumps(inGame, -1))
         self.players = self.game.gameState.players
         self.agent = self.game.gameState.players[0]
