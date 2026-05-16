@@ -8,7 +8,7 @@ from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel
 from DeepLearning.Encoders.MainGame.ActionMask.GetActionMask import getActionMask, getActionMaskTrading
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from DeepLearning.globals import GAME_RESULTS
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
 from DeepLearning.Encoders.MainGame.Observation.get_observation_full import getObservationFull, lowerBound, upperBound

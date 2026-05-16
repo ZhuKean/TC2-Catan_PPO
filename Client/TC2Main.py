@@ -4,7 +4,7 @@ import time
 import argparse
 
 from Agents.AgentModel import AgentModel
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 
 from Client import Client
 

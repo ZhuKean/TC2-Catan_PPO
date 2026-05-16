@@ -1,4 +1,4 @@
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 
 global_models = {
     # "Reward_win_10M": MaskablePPO.load("DeepLearning/Thesis/Rewards/Models/Reward_win/Reward_win_10M.zip"),

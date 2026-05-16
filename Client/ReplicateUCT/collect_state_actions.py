@@ -4,7 +4,7 @@ from Agents.AgentUCT import AgentUCT
 from Agents.AgentModel import AgentMultiModel, AgentModel
 from Game.CatanGame import *
 from CatanSimulator import CreateGame
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from Game.CatanPlayer import PlayerStatsTracker
 from tabulate import tabulate
 from DeepLearning.Stats import headers

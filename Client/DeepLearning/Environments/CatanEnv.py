@@ -10,7 +10,7 @@ from Agents.AgentModel import AgentModel
 from CatanData.GameStateViewer import SaveGameStateImage
 from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified, getNodeValue, getObservationTrading, lowerBoundsTrading, upperBoundsTrading
 from DeepLearning.Encoders.MainGame.ActionMask.GetActionMask import getActionMask, getActionMaskTrading
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from CatanData.GameStateViewer import SaveGameStateImage, DisplayImage
 from DeepLearning.Encoders.MainGame.Observation.get_observation_full import getObservationFull, lowerBound, upperBound
 import time

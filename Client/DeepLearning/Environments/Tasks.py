@@ -10,7 +10,7 @@ from Agents.AgentModel import AgentModel
 from CatanData.GameStateViewer import SaveGameStateImage
 from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, lowerBoundsSimplified, upperBoundsSimplified, getObservationSimplified
 from DeepLearning.GetActionMask import getActionMask, getSetupActionMask
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
 
 

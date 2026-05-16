@@ -3,7 +3,7 @@ from Game.CatanPlayer import Player
 from Game.CatanAction import *
 from Agents.AgentRandom2 import AgentRandom2
 import random
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 import logging
 from global_model import global_models
 

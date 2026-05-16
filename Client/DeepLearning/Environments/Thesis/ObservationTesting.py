@@ -5,7 +5,7 @@ import pickle
 from CatanSimulator import CreateGame
 from Game.CatanGame import *
 from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from CatanData.GameStateViewer import SaveGameStateImage, DisplayImage
 import time
 from collections import deque

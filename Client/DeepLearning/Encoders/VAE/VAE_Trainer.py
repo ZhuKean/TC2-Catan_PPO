@@ -30,6 +30,7 @@ obs_log = np.log1p(observations)
 # 3. 归一化到 [0, 1]：适配 VAE 最后一层 Sigmoid
 # 这样 1463 会变成 1.0，0 还是 0，中间数值按对数曲线分布
 obs_max = np.max(obs_log)
+print(f"obs_max: {obs_max}")
 observations = obs_log / (obs_max + 1e-8)
 
 print(f"数据处理完毕：当前 Max={observations.max()}, Min={observations.min()}")

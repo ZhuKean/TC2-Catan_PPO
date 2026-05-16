@@ -9,7 +9,7 @@ from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel
 from CatanData.GameStateViewer import SaveGameStateImage
 from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from CatanData.GameStateViewer import SaveGameStateImage, DisplayImage
 import time
 from collections import deque

@@ -10,7 +10,7 @@ from Agents.AgentModel import AgentMultiModel
 from Agents.AgentModel import AgentModel
 from Agents.AgentGlobalModel import AgentGlobalModel
 from DeepLearning.GetActionMask import getActionMask
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from DeepLearning.globals import GAME_RESULTS
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
 from DeepLearning.Thesis.Observations.get_observation import getObservation, lowerBound, upperBound

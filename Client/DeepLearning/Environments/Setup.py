@@ -6,6 +6,7 @@ from CatanSimulator import CreateGame
 from Game.CatanGame import *
 from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
+from Agents.AgentRandom import AgentRandom
 from Agents.AgentModel import AgentModel
 #from Agents.AgentGlobalModel import AgentGlobalModel
 import time
@@ -22,19 +23,20 @@ class SetupRandom(CatanBaseEnv):
     Full Catan game with full action and state space (no player trades)
     Change the rewards when certain reward reached
     """
+
     def __init__(self, customBoard=None, players=None, trading=False):
         super(SetupRandom, self).__init__(customBoard=customBoard, players=players, trading=trading)
 
         # Reward settings
         self.winReward = True
-        self.winRewardAmount = +10
-        self.loseRewardAmount = -10
-        self.vpActionReward = False # Actions that directly give vp
+        self.winRewardAmount = +100
+        self.loseScale = 5
+        self.vpActionReward = False  # Actions that directly give vp
         self.vpActionRewardMultiplier = 1
-            # Trading Rewards
+        # Trading Rewards
         self.bankTradeReward = True
         self.bankTradeRewardMultiplier = 1
-            # Dense Rewards - Building roads/Buying dev cards/steeling resource
+        # Dense Rewards - Building roads/Buying dev cards/steeling resource
         self.denseRewards = True
         self.denseRewardMultiplier = 1
 
@@ -44,7 +46,6 @@ class SetupRandom(CatanBaseEnv):
         self.getActionMask = getSetupActionMask
         self.getObservation = getObservationSetup
 
-    
     def reset(self, seed=None):
         self.numTurns = 0
         return super(SetupRandom, self).reset()
@@ -55,10 +56,9 @@ class SetupRandom(CatanBaseEnv):
         else:
             return False
 
-
     def step(self, action):
         """
-        Accepts action index as argument, applies action, cycles through to players next turn, 
+        Accepts action index as argument, applies action, cycles through to players next turn,
         gets observation and action mask for turn
         """
         truncated = False
@@ -77,7 +77,7 @@ class SetupRandom(CatanBaseEnv):
         # Check if game Over
         if self.endCondition():
             return self.endGame(reward)
-        
+
         # if game is not over cycle through actions until its agents turn again
         currPlayer = self.players[self.game.gameState.currPlayer]
         while True:
@@ -97,7 +97,7 @@ class SetupRandom(CatanBaseEnv):
             # Check if game Over
             if self.endCondition():
                 return self.endGame(reward)
-        
+
         # Now ready for agent to choose action, get observation and action mask
         possibleActions = self.agent.GetPossibleActions(self.game.gameState)
         self.action_mask, self.indexActionDict = self.getActionMask(possibleActions)
@@ -115,17 +115,16 @@ class SetupRandom(CatanBaseEnv):
 
             if self.game.gameState.currState == "OVER":
                 break
-        
         wonGame = self.game.gameState.winner == 0
         GAME_RESULTS.append(1 if wonGame else 0)
         if wonGame:
-            if self.winReward:
-                reward += self.winRewardAmount
+            reward = self.winRewardAmount  # +100
         else:
-            if self.winReward:
-                reward += self.loseRewardAmount
+            agentVP = self.agent.victoryPoints
+            reward = -self.loseScale * (10 - agentVP)  # -5 * (10 - VP)
 
         return None, reward, True, False, {}
+
 
 
 class SetupRandomSettlement(SetupRandom):

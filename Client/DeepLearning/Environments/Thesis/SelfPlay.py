@@ -10,7 +10,7 @@ from Game.CatanPlayer import Player
 from Agents.AgentRandom2 import AgentRandom2
 from Agents.AgentModel import AgentModel, AgentMultiModel
 from DeepLearning.GetActionMask import getActionMask, getActionMaskTrading
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from DeepLearning.globals import GAME_RESULTS
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
 from DeepLearning.Thesis.Observations.get_observation_full import getObservationFull, lowerBound, upperBound
@@ -70,7 +70,7 @@ class SelfPlayBase(CatanBaseEnv):
 
         # if game is not over cycle through actions until its agents turn again
         currPlayer = self.players[self.game.gameState.currPlayer]
-        while True:
+        while self.selfPlay:
             # Only use model when right turn and more than 1 possible action
             if currPlayer.seatNumber == 0:
                 possibleActions = self.agent.GetPossibleActions(self.game.gameState)
@@ -110,105 +110,77 @@ class SelfPlayBase(CatanBaseEnv):
         return None, reward, True, False, {}
 
 
-class SelfPlayZKA(SelfPlayBase):
 
+
+class SelfPlayZKA(SelfPlayBase):
     def __init__(self, customBoard=None, players=None, trading=False, selfPlay=False, debug=False):
         super(SelfPlayZKA, self).__init__(customBoard=customBoard, players=players, trading=trading)
-        self.opponentModel1 = MaskablePPO.load('DeepLearning/Models/ZKA_model/model_6223354_elo332.zip')
-        self.opponentModel2 = MaskablePPO.load('DeepLearning/Models/ZKA_model/model_6223354_elo332.zip')
-        self.opponentModel3 = MaskablePPO.load('DeepLearning/Models/ZKA_model/model_6223354_elo332.zip')
+
+        # 1. 加载对手模型 (请确保路径正确)
+        try:
+            default_model_path = 'DeepLearning/Models/ZKA_model/model_6223354_elo332.zip'
+            self.opponentModel1 = MaskablePPO.load(default_model_path)
+            self.opponentModel2 = MaskablePPO.load(default_model_path)
+            self.opponentModel3 = MaskablePPO.load(default_model_path)
+        except Exception as e:
+            print(f"Warning: Opponent models not loaded: {e}")
+
         self.selfPlay = selfPlay
-
-        # --- 修改部分：从 Episode 改为 Step ---
-        # 设定在多少步之后完全停止 Dense Reward (例如 1000 局 * 平均 60 步 = 60000 步)
-        self.dense_reward_end_step = 1000000
-        self.current_step = 0
-        # ------------------------------------
-
         self.debug = debug
 
-        # 记录当前局内累积的 Dense Reward (用于末尾结算或观察)
-        self.episode_dense_reward = 0
+        # 2. 衰减与步数计数器
+        self.current_step = 0
+        self.dense_reward_end_step = 1000000  # 100万步后 dense reward 降为 0
 
-        # 博弈奖励参数
-        self.score_diff_coeff = 1  # 分差系数
-        # Reward settings
-        self.winReward = True
-        self.winRewardAmount = 30
-        self.loseRewardAmount = -10
-        self.vpActionReward = False  # Actions that directly give vp
-        self.vpActionRewardMultiplier = 1
-        # Trading Rewards
+        # 3. 初始奖励设置 (对齐 SelfPlayDense)
+        self.winRewardAmount = 50  # 对齐 Dense 版胜利奖励
+        self.score_diff_coeff = 1  # ZKA 分差系数
+
         self.bankTradeReward = True
         self.bankTradeRewardMultiplier = 1
-        # Dense Rewards - Building roads/Buying dev cards/steeling resource
         self.denseRewards = True
         self.denseRewardMultiplier = 1
+        self.vpActionRewardMultiplier = 1
 
-        # Settings for Setup training
+        # 4. 环境空间定义
         self.observation_space = spaces.Box(low=lowerBound, high=upperBound, dtype=np.int64)
         self.action_space = spaces.Discrete(486)
         self.getActionMask = getActionMask
         self.getObservation = getObservationFull
 
     def get_dense_weight(self):
-        """基于总步数计算衰减权重"""
+        """计算当前 Dense Reward 的权重 (1.0 -> 0.0)"""
         if self.current_step >= self.dense_reward_end_step:
             return 0.0
-        # 线性衰减：从 1.0 降到 0.0
         return 1.0 - (self.current_step / self.dense_reward_end_step)
 
     def reset(self, seed=None):
         self.numTurns = 0
-        self.turnsFirstSettlement = 0
-
         if self.debug:
-            # 修改打印信息
-            print("Total Steps: ", self.current_step)
-            print("  Dense reward weight: ", self.get_dense_weight())
+            print(f"Reset Game | Total Steps: {self.current_step} | Weight: {self.get_dense_weight():.2f}")
 
-        # --- 修改部分：不再在 reset 里增加局数 ---
-        # 局数计数已移除，改由 step 记录步数
-        # ------------------------------------
+        # 自博弈模型更新逻辑
+        if self.selfPlay:
+            try:
+                self.opponentModel1.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{os.environ['MODEL_1_NAME']}")
+                self.opponentModel2.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{os.environ['MODEL_2_NAME']}")
+                self.opponentModel3.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{os.environ['MODEL_3_NAME']}")
+                os.environ["UPDATE_MODELS_DIST"] = "True"
+            except:
+                pass
 
-        # Update opponents models if needed
-        if self.selfPlay == True:
-            if os.environ["UPDATE_MODELS_DIST"] == "True":
-                modelName1 = os.environ["MODEL_1_NAME"]
-                modelName2 = os.environ["MODEL_2_NAME"]
-                modelName3 = os.environ["MODEL_3_NAME"]
-                self.opponentModel1.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{modelName1}")
-                self.opponentModel2.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{modelName2}")
-                self.opponentModel3.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{modelName3}")
-                os.environ["UPDATE_MODELS_DIST"] = "False"
-                if self.debug:
-                    print(f"  Successfully using opponents: {modelName1}, {modelName2}, {modelName3}")
-
-                self.game = CreateGame([AgentRandom2("P0", 0),
-                                        AgentModel("P1", 1, self.opponentModel1),
-                                        AgentModel("P2", 2, self.opponentModel2),
-                                        AgentModel("P3", 3, self.opponentModel3)])
-            else:
-                self.game = CreateGame([
-                    AgentRandom2("P0", 0),  # agent to be trained
-                    AgentRandom2("P1", 1),
-                    AgentRandom2("P2", 2),
-                    AgentRandom2("P3", 3)
-                ])
-        else:
-            self.game = CreateGame([
-                AgentRandom2("P0", 0),  # agent to be trained
-                AgentRandom2("P1", 1),
-                AgentRandom2("P2", 2),
-                AgentRandom2("P3", 3)
-            ])
-
-        if self.game is None:
-            raise ValueError("CreateGame returned None.")
+        # 创建游戏 (确保 P0 是待训练 Agent)
+        self.game = CreateGame([
+            AgentRandom2("P0", 0),
+            AgentModel("P1", 1, self.opponentModel1),
+            AgentModel("P2", 2, self.opponentModel2),
+            AgentModel("P3", 3, self.opponentModel3)
+        ], customBoard=self.customBoard)
 
         self.players = self.game.gameState.players
         self.agent = self.game.gameState.players[0]
 
+        # 循环直到轮到 Agent (P0)
         currPlayer = self.players[self.game.gameState.currPlayer]
         while currPlayer.seatNumber != 0:
             agentAction = currPlayer.DoMove(self.game)
@@ -217,39 +189,23 @@ class SelfPlayZKA(SelfPlayBase):
 
         possibleActions = self.agent.GetPossibleActions(self.game.gameState)
         self.action_mask, self.indexActionDict = self.getActionMask(possibleActions)
-        observation = self.getObservation(self.game.gameState)
-
-        return observation, {}
+        return self.getObservation(self.game.gameState), {}
 
     def step(self, action):
-        truncated = False
-        done = False
-
-        # --- 修改部分：在每一步执行时增加步数计数 ---
         self.current_step += 1
-        # ----------------------------------------
-
         raw_dense_reward = 0
 
-        # ==========================================
-        # 1. 记录动作执行前的状态 (Before State)
-        # ==========================================
+        # 记录动作前状态
         biggestArmyBefore = self.agent.biggestArmy
         biggestRoadBefore = self.agent.biggestRoad
         prevState = self.game.gameState.currState
 
-        if getattr(self, 'bankTradeReward', False) and prevState[:5] != "START":
-            possibleSettlementsBefore = self.game.gameState.GetPossibleSettlements(self.agent)
-            canBuildSettlementBefore = possibleSettlementsBefore and self.agent.HavePiece(0) and self.agent.CanAfford(
-                BuildSettlementAction.cost)
-            canBuildCityBefore = self.agent.settlements and self.agent.CanAfford(BuildCityAction.cost)
-            canBuyDevCardBefore = self.agent.CanAfford(BuyDevelopmentCardAction.cost)
-            canBuildRoadBefore = self.game.gameState.GetPossibleRoads(self.agent) and self.agent.HavePiece(
-                1) and self.agent.CanAfford(BuildRoadAction.cost)
+        # 记录交易前能否负担（用于 BankTradeReward 逻辑）
+        if self.bankTradeReward and prevState[:5] != "START":
+            canBuildSettlementBefore = self.agent.CanAfford(BuildSettlementAction.cost)
+            canBuildCityBefore = self.agent.CanAfford(BuildCityAction.cost)
 
-        # ==========================================
-        # 2. 执行动作 (Apply Action)
-        # ==========================================
+        # 执行动作
         actionObj = self.indexActionDict[action]
         actionObj.ApplyAction(self.game.gameState)
 
@@ -257,56 +213,36 @@ class SelfPlayZKA(SelfPlayBase):
             self.numTurns += 1
             self.agent.playerTurns += 1
 
-        # ==========================================
-        # 3. 记录动作执行后的状态并计算原始分 (After State & Raw Reward)
-        # ==========================================
-        if getattr(self, 'bankTradeReward', False):
-            if actionObj.type == "BankTradeOffer":
-                canBuildSettlementAfter = self.agent.CanAfford(BuildSettlementAction.cost)
-                canBuildRoadAfter = self.agent.CanAfford(BuildRoadAction.cost)
-                canBuildCityAfter = self.agent.CanAfford(BuildCityAction.cost)
-                canBuyDevCardAfter = self.agent.CanAfford(BuyDevelopmentCardAction.cost)
+        # 计算 BankTrade 奖励
+        if self.bankTradeReward and actionObj.type == "BankTradeOffer":
+            canBuildSettlementAfter = self.agent.CanAfford(BuildSettlementAction.cost)
+            canBuildCityAfter = self.agent.CanAfford(BuildCityAction.cost)
+            if not canBuildSettlementBefore and canBuildSettlementAfter: raw_dense_reward += 1
+            if not canBuildCityBefore and canBuildCityAfter: raw_dense_reward += 1
 
-                if canBuildSettlementBefore == False and canBuildSettlementAfter == True:
-                    raw_dense_reward += 1 * self.bankTradeRewardMultiplier
-                if canBuildCityBefore == False and canBuildCityAfter == True:
-                    raw_dense_reward += 1 * self.bankTradeRewardMultiplier
-                if canBuildSettlementBefore == True and canBuildSettlementAfter == False:
-                    raw_dense_reward += -1 * self.bankTradeRewardMultiplier
-                if canBuildCityBefore == True and canBuildCityAfter == False:
-                    raw_dense_reward += -1 * self.bankTradeRewardMultiplier
-                if canBuildSettlementAfter == False and canBuildCityAfter == False and canBuildRoadAfter == False and canBuyDevCardAfter == False:
-                    raw_dense_reward += -0.25 * self.bankTradeRewardMultiplier
-
-        if getattr(self, 'denseRewards', True):
+        # 计算基础 Dense Reward
+        if self.denseRewards:
             if actionObj.type == 'BuildSettlement' and prevState[:5] != "START":
-                raw_dense_reward += 10 * self.vpActionRewardMultiplier
+                raw_dense_reward += 10
             elif actionObj.type == 'BuildCity':
-                raw_dense_reward += 10 * self.vpActionRewardMultiplier
+                raw_dense_reward += 10
             elif actionObj.type == 'BuyDevelopmentCard':
-                raw_dense_reward += 2 * self.denseRewardMultiplier
+                raw_dense_reward += 2
             elif actionObj.type == 'BuildRoad' and prevState[:5] != "START":
-                raw_dense_reward += 1 * self.denseRewardMultiplier
+                raw_dense_reward += 1
 
-            if biggestArmyBefore == False and self.agent.biggestArmy == True:
-                raw_dense_reward += 10 * self.vpActionRewardMultiplier
-            if biggestRoadBefore == False and self.agent.biggestRoad == True:
-                raw_dense_reward += 10 * self.vpActionRewardMultiplier
+            if not biggestArmyBefore and self.agent.biggestArmy: raw_dense_reward += 10
+            if not biggestRoadBefore and self.agent.biggestRoad: raw_dense_reward += 10
 
-        # ==========================================
-        # 4. 应用步数衰减系数
-        # ==========================================
-        weighted_dense_reward = raw_dense_reward * self.get_dense_weight()
+        # 应用当前权重的衰减
+        weight = self.get_dense_weight()
+        weighted_dense_reward = raw_dense_reward * weight
 
-        if hasattr(self, 'episode_dense_reward'):
-            self.episode_dense_reward += weighted_dense_reward
-
-        # ==========================================
-        # 5. 游戏结束判断与对手轮转
-        # ==========================================
+        # 检查游戏结束
         if self.endCondition():
             return self.endGame(weighted_dense_reward)
 
+        # 推进对手回合
         currPlayer = self.players[self.game.gameState.currPlayer]
         while True:
             if currPlayer.seatNumber == 0:
@@ -318,39 +254,49 @@ class SelfPlayZKA(SelfPlayBase):
                     self.agent.playerTurns += 1
 
             agentAction = currPlayer.DoMove(self.game)
-            if agentAction:
-                agentAction.ApplyAction(self.game.gameState)
+            agentAction.ApplyAction(self.game.gameState)
             currPlayer = self.players[self.game.gameState.currPlayer]
 
             if self.endCondition():
                 return self.endGame(weighted_dense_reward)
 
-        # ==========================================
-        # 6. 准备当前 Agent 的下一步状态
-        # ==========================================
+        # 准备下一回合
         possibleActions = self.agent.GetPossibleActions(self.game.gameState)
         self.action_mask, self.indexActionDict = self.getActionMask(possibleActions)
         observation = self.getObservation(self.game.gameState)
 
-        return observation, weighted_dense_reward, done, truncated, {}
+        return observation, weighted_dense_reward, False, False, {}
 
-    def endGame(self, reward):
+    def endGame(self, current_reward):
+        """
+        结算逻辑：
+        前期 (weight=1): 100 / -5*(10-VP)
+        后期 (weight=0): 100 + 分差 / -5*(10-VP) + 分差
+        """
+        weight = self.get_dense_weight()
+        wonGame = self.game.gameState.winner == 0
         scores = [p.victoryPoints for p in self.game.gameState.players]
         agent_score = scores[0]
         avg_other_score = sum(scores[1:]) / 3
 
-        winner_seat = self.game.gameState.winner
-        game_reward = 0
-        if winner_seat == 0:
+        # 1. 基础胜负奖励 (对齐 SelfPlayDense)
+        if wonGame:
             GAME_RESULTS.append(1)
-            game_reward = self.winRewardAmount + (agent_score - avg_other_score) * self.score_diff_coeff
+            base_game_reward = self.winRewardAmount  # +100
         else:
             GAME_RESULTS.append(0)
-            game_reward = self.loseRewardAmount + (agent_score - avg_other_score) * self.score_diff_coeff
+            base_game_reward = -5 * (10 - agent_score)  # -5 * 剩余分数
 
-        total_reward = reward + game_reward
+        # 2. ZKA 分差奖励 (随权重衰减而增强)
+        # 这里的 (1 - weight) 确保了前期不触发分差，后期完全触发
+        zka_diff_reward = (agent_score - avg_other_score) * self.score_diff_coeff
+        final_game_reward = base_game_reward + (zka_diff_reward * (1 - weight))
+
+        total_reward = current_reward + final_game_reward
+
         if self.debug:
-            print("  Final Reward:", total_reward)
+            print(f"  Game Over | Agent VP: {agent_score} | Final Reward: {total_reward:.2f}")
+
         return None, total_reward, True, False, {}
 
 
@@ -606,181 +552,114 @@ class SelfPlayMultiModelZKA(SelfPlayBase):
         return None, total_reward, True, False, {}
 
 
-  
 
-class SelfPlayUniform(SelfPlayBase):
-    """
-    When threshold reached updated all opponents to current model. 
-    """
-    def __init__(self):
-        super(SelfPlayUniform, self).__init__()
-
-        # Load starting opponent model
-        self.opponentModel = MaskablePPO.load('DeepLearning/Thesis/Opponents/Models/BaselineSelfPlay.zip')
-    
-    def reset(self, seed=None):
-
-        self.numTurns = 0
-        self.turnsFirstSettlement = 0
-
-        # Update opponents models if needed
-        if os.environ["UPDATE_MODELS_UNIFORM"] == "True":
-            # Get name of model to update to
-            modelName = os.environ["MODEL_NAME"]
-            self.opponentModel.set_parameters(f"DeepLearning/Thesis/Opponents/Models/Uniform/{modelName}")
-            os.environ["UPDATE_MODELS_UNIFORM"] = "False"
-
-        self.game = CreateGame([AgentRandom2("P0", 0),
-                                AgentModel("P1", 1, self.opponentModel),
-                                AgentModel("P2", 2, self.opponentModel),
-                                AgentModel("P3", 3, self.opponentModel)])
-        # self.game = pickle.loads(pickle.dumps(inGame, -1))
-        self.players = self.game.gameState.players
-        self.agent = self.game.gameState.players[0]
-
-        # Cycle through until agents turn
-        currPlayer = self.players[self.game.gameState.currPlayer]
-        while currPlayer.seatNumber != 0:
-            agentAction = currPlayer.DoMove(self.game)
-            agentAction.ApplyAction(self.game.gameState)
-            currPlayer = self.players[self.game.gameState.currPlayer]
-
-        # Return initial info needed: State, ActionMask
-        possibleActions = self.agent.GetPossibleActions(self.game.gameState)
-        self.action_mask, self.indexActionDict = self.getActionMask(possibleActions)
-        observation = self.getObservation(self.game.gameState)
-
-        return observation, {}
-
-
-class SelfPlayDistribution(SelfPlayBase):
-    """
-    When threshold reached update oppenents to [most recent, random pick, random pick, random pick]
-    """
-    def __init__(self):
-        super(SelfPlayDistribution, self).__init__()
-
-        # Load starting opponent model
-        self.opponentModel1 = MaskablePPO.load('DeepLearning/Thesis/Opponents/Models/BaselineSelfPlay.zip')
-        self.opponentModel2 = MaskablePPO.load('DeepLearning/Thesis/Opponents/Models/BaselineSelfPlay.zip')
-        self.opponentModel3 = MaskablePPO.load('DeepLearning/Thesis/Opponents/Models/BaselineSelfPlay.zip')
-    
-    def reset(self, seed=None):
-
-        self.numTurns = 0
-        self.turnsFirstSettlement = 0
-
-        # Update opponents models if needed
-        if os.environ["UPDATE_MODELS_DIST"] == "True":
-            modelName1 = os.environ["MODEL_1_NAME"]
-            modelName2 = os.environ["MODEL_2_NAME"]
-            modelName3 = os.environ["MODEL_3_NAME"]
-            self.opponentModel1.set_parameters(f"DeepLearning/Thesis/Opponents/Models/Distribution/{modelName1}")
-            self.opponentModel1.set_parameters(f"DeepLearning/Thesis/Opponents/Models/Distribution/{modelName2}")
-            self.opponentModel1.set_parameters(f"DeepLearning/Thesis/Opponents/Models/Distribution/{modelName3}")
-            os.environ["UPDATE_MODELS_DIST"] = "False"
-
-        self.game = CreateGame([AgentRandom2("P0", 0),
-                                AgentModel("P1", 1, self.opponentModel1),
-                                AgentModel("P2", 2, self.opponentModel2),
-                                AgentModel("P3", 3, self.opponentModel3)])
-        # self.game = pickle.loads(pickle.dumps(inGame, -1))
-        self.players = self.game.gameState.players
-        self.agent = self.game.gameState.players[0]
-
-        # Cycle through until agents turn
-        currPlayer = self.players[self.game.gameState.currPlayer]
-        while currPlayer.seatNumber != 0:
-            agentAction = currPlayer.DoMove(self.game)
-            agentAction.ApplyAction(self.game.gameState)
-            currPlayer = self.players[self.game.gameState.currPlayer]
-
-        # Return initial info needed: State, ActionMask
-        possibleActions = self.agent.GetPossibleActions(self.game.gameState)
-        self.action_mask, self.indexActionDict = self.getActionMask(possibleActions)
-        observation = self.getObservation(self.game.gameState)
-
-        return observation, {}
     
 
 class SelfPlayDense(SelfPlayBase):
     """
-    When threshold reached update oppenents to [most recent, random pick, random pick, random pick]
+    SelfPlayDense 环境：支持自定义 trading 开启/禁用和 selfPlay 模式
     """
-    def __init__(self):
-        super(SelfPlayDense, self).__init__()
 
-        # Load starting opponent model
-        # self.opponentModel1 = MaskablePPO.load('DeepLearning/Thesis/6.DenseRewards/BaselineSelfPlay.zip')
-        # self.opponentModel2 = MaskablePPO.load('DeepLearning/Thesis/6.DenseRewards/BaselineSelfPlay.zip')
-        # self.opponentModel3 = MaskablePPO.load('DeepLearning/Thesis/6.DenseRewards/BaselineSelfPlay.zip')
+    def __init__(self, customBoard=None, players=None, trading=False, selfPlay=False, opponent_model_path=None):
+        # 首先调用父类初始化
+        super(SelfPlayDense, self).__init__(customBoard=customBoard, players=players, trading=trading,
+                                            selfPlay=selfPlay)
 
-        # Reward settings
+        # 1. 校验逻辑：如果开启了 selfPlay 模式，必须提供模型路径
+        if selfPlay:
+            if opponent_model_path is None:
+                raise ValueError("【错误】开启 selfPlay 模式时，必须通过 'opponent_model_path' 传入有效的模型路径！")
+
+            # 检查文件物理路径是否存在
+            import os
+            if not os.path.exists(opponent_model_path):
+                raise FileNotFoundError(f"【错误】指定的模型文件不存在: {os.path.abspath(opponent_model_path)}")
+
+        # 2. 赋值路径属性
+        self.base_model_path = opponent_model_path
+
+        # 3. 加载对手模型
+        # 注意：只有在 selfPlay 为 True 且路径有效时才加载，节省内存和加载时间
+        if selfPlay and self.base_model_path:
+            print(f"正在从 {self.base_model_path} 加载对手模型...")
+            self.opponentModel1 = MaskablePPO.load(self.base_model_path)
+            self.opponentModel2 = MaskablePPO.load(self.base_model_path)
+            self.opponentModel3 = MaskablePPO.load(self.base_model_path)
+        else:
+            # 非 Self-Play 模式或未传入路径时，初始化为 None，防止后面逻辑引用报错
+            self.opponentModel1 = None
+            self.opponentModel2 = None
+            self.opponentModel3 = None
+
+        self.selfPlay = selfPlay
+
+        # 奖励设置
         self.winReward = True
-        self.winRewardAmount = 100
-        self.loseRewardAmount = -100
-        self.vpActionReward = False # Actions that directly give vp
+        self.winRewardAmount = 50
+        self.loseRewardCoefficient = 5  # 失败时的分差惩罚系数 (对齐 SelfPlayZKA)
+        self.bankTradeRewardMultiplier = 1
+        self.vpActionReward = False
         self.vpActionRewardMultiplier = 1
-            # Trading Rewards
         self.bankTradeReward = True
         self.bankTradeRewardMultiplier = 1
-            # Dense Rewards - Building roads/Buying dev cards/steeling resource
         self.denseRewards = True
         self.denseRewardMultiplier = 1
 
-        # Settings for Setup training
         self.observation_space = spaces.Box(low=lowerBound, high=upperBound, dtype=np.int64)
         self.action_space = spaces.Discrete(486)
-        # self.action_space = spaces.Discrete(566)
         self.getActionMask = getActionMask
         self.getObservation = getObservationFull
-    
-    def reset(self, seed=None):
 
+    def reset(self, seed=None):
         self.numTurns = 0
         self.turnsFirstSettlement = 0
 
+        # 2. 自博弈模型更新逻辑 (由外部 PPO 脚本通过环境变量触发)
+        if self.selfPlay and os.environ["UPDATE_MODELS_DIST"] == "False":
+            try:
+                m1 = os.environ.get('MODEL_1_NAME')
+                m2 = os.environ.get('MODEL_2_NAME')
+                m3 = os.environ.get('MODEL_3_NAME')
 
-        # Update opponents models if needed
-        if self.selfPlay == "True":
-            if os.environ["UPDATE_MODELS_DIST"] == "True":
-                modelName1 = os.environ["MODEL_1_NAME"]
-                modelName2 = os.environ["MODEL_2_NAME"]
-                modelName3 = os.environ["MODEL_3_NAME"]
-                self.opponentModel1.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{modelName1}")
-                self.opponentModel2.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{modelName2}")
-                self.opponentModel3.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{modelName3}")
-                os.environ["UPDATE_MODELS_DIST"] = "False"
+                # 更新权重
+                self.opponentModel1.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{m1}")
+                self.opponentModel2.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{m2}")
+                self.opponentModel3.set_parameters(f"DeepLearning/Models/ZKA_selfplay/{m3}")
 
-                self.game = CreateGame([AgentRandom2("P0", 0),
-                                        AgentModel("P1", 1, self.opponentModel1),
-                                        AgentModel("P2", 2, self.opponentModel2),
-                                        AgentModel("P3", 3, self.opponentModel3)])
+                # 打印检查信息
+                print(f"\n[Reset] 成功同步对手模型权重: P1={m1}, P2={m2}, P3={m3}")
+                os.environ["UPDATE_MODELS_DIST"] = "True"
+
+            except Exception as e:
+                print(f"[Reset] 模型同步失败: {e}")
+
+        # 3. 构建对手 Agent 列表
+        if self.selfPlay:
+            opponent_agents = [
+                AgentModel("P1", 1, self.opponentModel1),
+                AgentModel("P2", 2, self.opponentModel2),
+                AgentModel("P3", 3, self.opponentModel3)
+            ]
         else:
-            self.game = CreateGame([
-                AgentRandom2("P0", 0),  # agent to be trained
-                AgentRandom2("P1", 1),
-                AgentRandom2("P2", 2),
-                AgentRandom2("P3", 3)
-            ])
+            # 基础训练模式：全是随机对手
+            opponent_agents = [AgentRandom2(f"P{i}", i) for i in range(1, 4)]
 
-        # self.game = pickle.loads(pickle.dumps(inGame, -1))
+        # 4. 创建游戏 (P0 是当前正在训练的学习者)
+        self.game = CreateGame([AgentRandom2("P0", 0)] + opponent_agents, customBoard=self.customBoard)
         self.players = self.game.gameState.players
         self.agent = self.game.gameState.players[0]
 
-        # Cycle through until agents turn
+        # 5. 循环直到轮到 P0 的回合
         currPlayer = self.players[self.game.gameState.currPlayer]
         while currPlayer.seatNumber != 0:
             agentAction = currPlayer.DoMove(self.game)
             agentAction.ApplyAction(self.game.gameState)
             currPlayer = self.players[self.game.gameState.currPlayer]
 
-        # Return initial info needed: State, ActionMask
+        # 返回初始观测和掩码
         possibleActions = self.agent.GetPossibleActions(self.game.gameState)
         self.action_mask, self.indexActionDict = self.getActionMask(possibleActions)
-        observation = self.getObservation(self.game.gameState)
-
-        return observation, {}
+        return self.getObservation(self.game.gameState), {}
     
     def step(self, action):
         """
@@ -887,7 +766,7 @@ class SelfPlayDense(SelfPlayBase):
         else:
             GAME_RESULTS.append(0)
             if self.winReward:
-                reward += -5 * (10-self.agent.victoryPoints)
+                reward += -self.loseRewardCoefficient * (10-self.agent.victoryPoints)
 
         return None, reward, True, False, {}
 

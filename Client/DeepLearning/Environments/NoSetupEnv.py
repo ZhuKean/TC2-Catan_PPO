@@ -11,7 +11,7 @@ from Agents.AgentRandom2 import AgentRandom2
 from CatanData.GameStateViewer import SaveGameStateImage
 from DeepLearning.GetObservation import getObservation, getSetupObservation, getSetupRandomObservation, lowerBounds, upperBounds, setupRandomLowerBounds, setupRandomUpperBounds
 from DeepLearning.Thesis.Setup.getActionMaskSetup import getSetupActionMask
-from DeepLearning.PPO import MaskablePPO
+from DeepLearning.CustomMaskablePPO import MaskablePPO
 from sb3_contrib.common.maskable.utils import get_action_masks
 from DeepLearning.Environments.CatanEnv import CatanBaseEnv
 from DeepLearning.GetActionMask import getActionMask
